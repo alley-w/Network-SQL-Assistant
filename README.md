@@ -154,7 +154,38 @@ questions, not held-out or production accuracy. The model alias can change over
 time. Future evaluation needs more questions, unsupported requests, diverse data,
 and separate held-out examples. Empty-result matches can conceal incorrect SQL.
 
-### Automated checks
+### Challenge evaluation and abstention
+
+`challenge_cases.json` contains six additional SQL questions and three requests
+the schema cannot answer: interface utilization, downtime, and a relative date
+without a reference date. Run it separately from the development examples:
+
+```sh
+docker compose run --build --rm lab python evaluate_model.py --cases challenge_cases.json --report data/challenge-evaluation.json
+```
+
+This makes nine model calls. Reports separate answerable-query correctness from
+unsupported-request handling. `UNSUPPORTED` is correct only for a question marked
+unsupported; refusing an answerable question or generating SQL for an unsupported
+one is scored as `wrong_abstention`. Unsupported questions do not execute SQL.
+SQL execution failures and API failures remain separate categories.
+
+The challenge cases were committed before their first model run, with the same
+prompt used for the initial development baseline. This provides a small initial
+generalization check, not an independent benchmark: one author designed the app,
+prompt, and questions. Once results inform prompt changes, these cases become
+development material; use new unseen cases for subsequent generalization claims.
+
+`benchmarks/challenge-baseline.json` preserves the first run: 6/6 answerable
+questions passed, and 2/3 unsupported questions were correctly declined (8/9
+overall). The failure was “yesterday”: the model used SQLite `date('now', ...)`
+instead of returning `UNSUPPORTED`, despite the prompt's requirement for a
+reference date. Its SQL was not executed by the evaluator for that unsupported
+case. The generation prompt was not changed after this run. This demonstrates
+why read-only enforcement and answer correctness must be evaluated separately,
+and motivates explicit reference-date handling before a user-facing interface.
+
+### Continuous integration
 
 GitHub Actions builds the Docker image on pushes and pull requests, runs the
 execution/evaluation tests, verifies reference answers, and checks prompt preview.

@@ -1,0 +1,265 @@
+{
+  "total": 9,
+  "passed": 8,
+  "categories": {
+    "rows": {
+      "total": 6,
+      "passed": 6
+    },
+    "unsupported": {
+      "total": 3,
+      "passed": 2
+    }
+  },
+  "accuracy": 0.8888888888888888,
+  "results": [
+    {
+      "id": "highest_average_cpu",
+      "question": "Which device had the highest average CPU percentage over all recorded samples? Return its hostname and average CPU rounded to two decimals. Break ties by hostname.",
+      "expected_status": "rows",
+      "expected_rows": [
+        [
+          "site-2-router-01",
+          56.55
+        ]
+      ],
+      "prompt_sha256": "098b1ae0c1218085ea6b36c01cb2d58599f190f8daf9f75e0953825a311521ef",
+      "generated_sql": "SELECT d.hostname, ROUND(AVG(dm.cpu_pct), 2) AS average_cpu\nFROM device_metrics dm\nJOIN devices d ON dm.device_id = d.id\nGROUP BY dm.device_id\nORDER BY average_cpu DESC, d.hostname ASC\nLIMIT 1;",
+      "actual_rows": [
+        [
+          "site-2-router-01",
+          56.55
+        ]
+      ],
+      "truncated": false,
+      "status": "pass",
+      "latency_seconds": 1.485
+    },
+    {
+      "id": "daily_site_samples",
+      "question": "For November 3, 2026 UTC, count monitoring samples per site. Return site name and count, ordered by site name.",
+      "expected_status": "rows",
+      "expected_rows": [
+        [
+          "Montreal",
+          48
+        ],
+        [
+          "Toronto",
+          48
+        ],
+        [
+          "Vancouver",
+          48
+        ]
+      ],
+      "prompt_sha256": "16b0d08e42576dcaf66c7822b213d2660207bf56942990dfe44173400a8b3df8",
+      "generated_sql": "SELECT s.name AS site_name, COUNT(dm.device_id) AS sample_count\nFROM sites s\nJOIN devices d ON s.id = d.site_id\nJOIN device_metrics dm ON d.id = dm.device_id\nWHERE dm.collected_at >= '2026-11-03 00:00:00' AND dm.collected_at < '2026-11-04 00:00:00'\nGROUP BY s.name\nORDER BY s.name;",
+      "actual_rows": [
+        [
+          "Montreal",
+          48
+        ],
+        [
+          "Toronto",
+          48
+        ],
+        [
+          "Vancouver",
+          48
+        ]
+      ],
+      "truncated": false,
+      "status": "pass",
+      "latency_seconds": 1.341
+    },
+    {
+      "id": "never_high_cpu",
+      "question": "Which devices never recorded CPU above 80%? Return only hostname, sorted alphabetically.",
+      "expected_status": "rows",
+      "expected_rows": [
+        [
+          "site-1-router-01"
+        ],
+        [
+          "site-1-switch-01"
+        ],
+        [
+          "site-2-switch-01"
+        ],
+        [
+          "site-3-router-01"
+        ],
+        [
+          "site-3-switch-01"
+        ]
+      ],
+      "prompt_sha256": "529c0f7a1e35037f88e464545879316a4be64ab75c068a7f1f8b95162707f620",
+      "generated_sql": "SELECT d.hostname\nFROM devices d\nLEFT JOIN device_metrics dm ON d.id = dm.device_id AND dm.cpu_pct > 80\nWHERE dm.device_id IS NULL\nORDER BY d.hostname ASC\nLIMIT 100;",
+      "actual_rows": [
+        [
+          "site-1-router-01"
+        ],
+        [
+          "site-1-switch-01"
+        ],
+        [
+          "site-2-switch-01"
+        ],
+        [
+          "site-3-router-01"
+        ],
+        [
+          "site-3-switch-01"
+        ]
+      ],
+      "truncated": false,
+      "status": "pass",
+      "latency_seconds": 0.694
+    },
+    {
+      "id": "sites_with_spikes",
+      "question": "Which sites have at least 10 samples above 80% CPU over the full dataset? Return site name and high-CPU sample count, ordered by site name.",
+      "expected_status": "rows",
+      "expected_rows": [
+        [
+          "Toronto",
+          56
+        ]
+      ],
+      "prompt_sha256": "9c89a98f5fd287362b7ed5f143796a255d462d1f9672cac9376827d6cc092383",
+      "generated_sql": "SELECT s.name, COUNT(*) AS high_cpu_sample_count\nFROM device_metrics dm\nJOIN devices d ON dm.device_id = d.id\nJOIN sites s ON d.site_id = s.id\nWHERE dm.cpu_pct > 80\nGROUP BY s.id, s.name\nHAVING COUNT(*) >= 10\nORDER BY s.name\nLIMIT 100;",
+      "actual_rows": [
+        [
+          "Toronto",
+          56
+        ]
+      ],
+      "truncated": false,
+      "status": "pass",
+      "latency_seconds": 0.832
+    },
+    {
+      "id": "daily_spikes",
+      "question": "For each UTC date with CPU readings above 80%, return the date as YYYY-MM-DD and number of such samples, sorted by date.",
+      "expected_status": "rows",
+      "expected_rows": [
+        [
+          "2026-11-01",
+          8
+        ],
+        [
+          "2026-11-02",
+          8
+        ],
+        [
+          "2026-11-03",
+          8
+        ],
+        [
+          "2026-11-04",
+          8
+        ],
+        [
+          "2026-11-05",
+          8
+        ],
+        [
+          "2026-11-06",
+          8
+        ],
+        [
+          "2026-11-07",
+          8
+        ]
+      ],
+      "prompt_sha256": "62b178d24d37dfab25bddf4e66d8f116d74bc689be6bcd6fbd4f87f93e8cab30",
+      "generated_sql": "SELECT \n    SUBSTR(collected_at, 1, 10) AS date, \n    COUNT(*) AS high_cpu_samples\nFROM \n    device_metrics\nWHERE \n    cpu_pct > 80\nGROUP BY \n    date\nORDER BY \n    date;",
+      "actual_rows": [
+        [
+          "2026-11-01",
+          8
+        ],
+        [
+          "2026-11-02",
+          8
+        ],
+        [
+          "2026-11-03",
+          8
+        ],
+        [
+          "2026-11-04",
+          8
+        ],
+        [
+          "2026-11-05",
+          8
+        ],
+        [
+          "2026-11-06",
+          8
+        ],
+        [
+          "2026-11-07",
+          8
+        ]
+      ],
+      "truncated": false,
+      "status": "pass",
+      "latency_seconds": 0.852
+    },
+    {
+      "id": "router_sample_count",
+      "question": "How many recorded monitoring samples belong to routers rather than switches? Return only the count.",
+      "expected_status": "rows",
+      "expected_rows": [
+        [
+          504
+        ]
+      ],
+      "prompt_sha256": "2937675bdf710d90cca74b940c5488bbd5a215417f7fd10aaa83fb54813624a4",
+      "generated_sql": "SELECT COUNT(dm.device_id) \nFROM device_metrics dm \nJOIN devices d ON dm.device_id = d.id \nWHERE d.device_type = 'router';",
+      "actual_rows": [
+        [
+          504
+        ]
+      ],
+      "truncated": false,
+      "status": "pass",
+      "latency_seconds": 0.656
+    },
+    {
+      "id": "missing_interface_data",
+      "question": "Which interfaces exceeded 80% bandwidth utilization?",
+      "expected_status": "unsupported",
+      "prompt_sha256": "e1984c8f2bdcdad63f6d05d8fc48875cece1244229845fc45f19096b0f5e5911",
+      "generated_sql": "UNSUPPORTED",
+      "status": "pass",
+      "latency_seconds": 0.388
+    },
+    {
+      "id": "missing_outage_data",
+      "question": "Which site had the most minutes of downtime?",
+      "expected_status": "unsupported",
+      "prompt_sha256": "4ee67bb5559111c9b1982d5cd3e467398aa81e6d3f68c1dfc6877f13ccc67734",
+      "generated_sql": "UNSUPPORTED",
+      "status": "pass",
+      "latency_seconds": 0.489
+    },
+    {
+      "id": "ambiguous_relative_date",
+      "question": "Which devices had the highest average CPU yesterday?",
+      "expected_status": "unsupported",
+      "prompt_sha256": "d2b29ee3ce66dd845d9beac3d1ad04bdb00dadbec62a818ebdde4955836e40ac",
+      "generated_sql": "WITH cpu_averages AS (\n  SELECT\n    device_id,\n    AVG(cpu_pct) AS avg_cpu\n  FROM device_metrics\n  WHERE collected_at >= date('now', '-1 day', 'start of day')\n    AND collected_at < date('now', 'start of day')\n  GROUP BY device_id\n)\nSELECT d.hostname, cpu_averages.avg_cpu\nFROM cpu_averages\nJOIN devices d ON cpu_averages.device_id = d.id\nORDER BY cpu_averages.avg_cpu DESC, d.hostname\nLIMIT 100;",
+      "status": "wrong_abstention",
+      "latency_seconds": 1.161
+    }
+  ],
+  "created_at": "2026-11-15T03:52:18.274077+00:00",
+  "model": "gpt-4.1-mini",
+  "dataset_sha256": "77d0e8952170d7e208241d95d2cdd91fc014a44e5138c40001c78e3807fdf01e",
+  "cases_file": "challenge_cases.json",
+  "scope": "Small synthetic-data evaluation; inspect cases and prior prompt tuning before interpreting generalization."
+}
