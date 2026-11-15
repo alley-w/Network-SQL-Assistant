@@ -13,6 +13,7 @@ from pathlib import Path
 from app import seed
 from generate import build_messages, generate_sql
 from query import execute_query
+from date_context import ClarificationRequired
 
 
 def evaluate_cases(path, cases, generate=generate_sql):
@@ -24,8 +25,17 @@ def evaluate_cases(path, cases, generate=generate_sql):
                   "expected_status": "unsupported" if unsupported else "rows"}
         if not unsupported:
             result["expected_rows"] = case["expected_rows"]
-        with closing(sqlite3.connect(path)) as db:
-            messages = build_messages(db, case["question"])
+        try:
+            with closing(sqlite3.connect(path)) as db:
+                messages = build_messages(db, case["question"], case.get("reference_date"))
+        except ClarificationRequired as error:
+            result.update(status="pass" if unsupported else "wrong_abstention",
+                          decision_source="application", clarification=str(error),
+                          latency_seconds=round(time.monotonic() - started, 3))
+            results.append(result)
+            print(f"{result['status'].upper()} {case['id']} (application clarification)", flush=True)
+            continue
+        result["decision_source"] = "model"
         result["prompt_sha256"] = hashlib.sha256(json.dumps(messages, sort_keys=True).encode()).hexdigest()
         try:
             sql = generate(messages)
@@ -69,7 +79,7 @@ def main():
         parser.error("Reference set is empty")
     if not all(os.environ.get(key, "").strip() for key in ("LLM_BASE_URL", "LLM_MODEL")):
         parser.error("Configure LLM_BASE_URL and LLM_MODEL in .env first")
-    print(f"Evaluating {len(cases)} questions; one model request per question.", flush=True)
+    print(f"Evaluating {len(cases)} questions; at most one model request per question.", flush=True)
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / "evaluation.db"
         seed(path)

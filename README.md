@@ -185,7 +185,31 @@ case. The generation prompt was not changed after this run. This demonstrates
 why read-only enforcement and answer correctness must be evaluated separately,
 and motivates explicit reference-date handling before a user-facing interface.
 
-### Continuous integration
+### Explicit date context
+
+The CLI now checks common English relative-time phrases before contacting the
+model. `today`, `yesterday`, and `tomorrow` require `--reference-date YYYY-MM-DD`,
+defined as a UTC calendar date. Python resolves the day and replaces the phrase
+with an explicit date in the user message. The system clock is not consulted.
+
+```sh
+docker compose run --build --rm lab python generate.py --execute --reference-date 2026-11-04 "How many samples exceeded 80% CPU yesterday?"
+```
+
+This question becomes “How many samples exceeded 80% CPU on 2026-11-03 UTC?”
+Without the reference date, it exits with code 2 and requests clarification
+without a model call. Other detected phrases such as “last week” or “past 7 days”
+require explicit dates. The detection uses a deliberately small English pattern
+list, not complete natural-language date understanding; unfamiliar wording can
+still reach the model. UTC day semantics also differ from a user's local day.
+Future UI work should collect a structured date range rather than infer all dates
+from unrestricted prose. Model SQL still needs result-based evaluation.
+
+Evaluation reports label `decision_source` as `application` or `model`, so a
+deterministic refusal cannot be mistaken for improved model reasoning. The first
+challenge baseline remains unchanged to preserve the observed model failure.
+
+### CI workflow
 
 GitHub Actions builds the Docker image on pushes and pull requests, runs the
 execution/evaluation tests, verifies reference answers, and checks prompt preview.

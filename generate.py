@@ -11,9 +11,11 @@ from urllib.request import Request, urlopen
 from app import seed
 from pathlib import Path
 from query import execute_query
+from date_context import resolve_question
 
 
-def build_messages(db, question):
+def build_messages(db, question, reference_date=None):
+    question = resolve_question(question, reference_date)
     schema = "\n".join(row[0] + ";" for row in db.execute(
         "SELECT sql FROM sqlite_master WHERE type = 'table' "
         "AND name NOT LIKE 'sqlite_%' ORDER BY name"
@@ -72,13 +74,18 @@ def main():
     parser.add_argument("question")
     parser.add_argument("--preview", action="store_true", help="Show the prompt without contacting a model")
     parser.add_argument("--execute", action="store_true", help="Run generated SQL with restricted read-only access")
+    parser.add_argument("--reference-date", help="UTC reference date in YYYY-MM-DD format for today/yesterday/tomorrow")
     args = parser.parse_args()
     if not args.question.strip():
         parser.error("question must not be empty")
     path = Path("data/network.db")
     seed(path)
-    with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as db:
-        messages = build_messages(db, args.question)
+    try:
+        with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as db:
+            messages = build_messages(db, args.question, args.reference_date)
+    except ValueError as error:
+        print(f"Question needs clarification: {error}", file=sys.stderr)
+        return 2
     if args.preview:
         print(json.dumps(messages, indent=2))
         return 0
