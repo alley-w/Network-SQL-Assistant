@@ -1,4 +1,4 @@
-"""Generate SQL for review. Model output is never executed here."""
+"""Generate SQL for review, or run it with --execute and enforced restrictions."""
 import argparse
 import json
 import os
@@ -10,6 +10,7 @@ from urllib.request import Request, urlopen
 
 from app import seed
 from pathlib import Path
+from query import execute_query
 
 
 def build_messages(db, question):
@@ -70,6 +71,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("question")
     parser.add_argument("--preview", action="store_true", help="Show the prompt without contacting a model")
+    parser.add_argument("--execute", action="store_true", help="Run generated SQL with restricted read-only access")
     args = parser.parse_args()
     if not args.question.strip():
         parser.error("question must not be empty")
@@ -85,8 +87,15 @@ def main():
     except (ValueError, json.JSONDecodeError) as error:
         print(f"Generation failed: {error}", file=sys.stderr)
         return 1
-    print("Model output for review only — not validated or executed:\n")
+    print("Generated SQL:\n" if args.execute else "Model output for review only — not validated or executed:\n")
     print(sql)
+    if args.execute:
+        try:
+            result = execute_query(path, sql)
+        except ValueError as error:
+            print(f"Execution failed: {error}", file=sys.stderr)
+            return 1
+        print("\n" + json.dumps(result, indent=2))
     return 0
 
 

@@ -59,10 +59,35 @@ model. OpenAI's base URL is `https://api.openai.com/v1`. For Ollama running on
 your Mac, use `http://host.docker.internal:11434/v1` and an installed model name.
 Inside the container, `localhost` refers to the container itself, not your Mac.
 
-Output is untrusted model text for review only: it is not validated or executed.
-The prompt's read-only instructions are not a security boundary. Unsupported
-questions should return `UNSUPPORTED`; that behavior still needs live evaluation.
-The next milestone will validate and constrain execution before integrating it.
+By default, output is untrusted model text for review only. To execute it:
+
+```sh
+docker compose run --build --rm lab python generate.py --execute "Which devices recorded CPU above 80%, and how many such samples did each have? Sort by hostname."
+```
+
+`query.py` opens a new read-only connection, enables query-only mode, and uses
+SQLite's authorizer to allow SELECT, reads of the three application tables, and
+an explicit list of reporting functions. Other actions are denied, including
+writes, schema changes, PRAGMA, ATTACH, extension loading, and metadata reads.
+SQLite rejects multiple statements; nonrecursive read CTEs are supported.
+The prompt's instructions alone do not enforce these restrictions.
+
+A progress handler interrupts expensive SQL after a two-second budget. This is
+cooperative, not a hard process deadline, and does not bound every native call
+or total process memory. SQL length, expression depth, column count, and individual
+value size are also constrained. Results return at most 100 rows, with a
+`truncated` flag when more exist. These are prototype controls for our small
+synthetic SQLite database, not a production isolation boundary. They do not
+establish whether the generated query correctly answers the question.
+
+Run execution tests without contacting a model:
+
+```sh
+docker compose run --build --rm lab python -m unittest -v test_query
+```
+
+The tests cover reference answers, writes, attachment/extension attempts,
+multiple statements, CTEs, result truncation, and expensive-query interruption.
 
 Protocol references: [OpenAI Chat API](https://developers.openai.com/api/reference/resources/chat)
 and [Ollama compatibility](https://docs.ollama.com/api/openai-compatibility).
@@ -78,8 +103,8 @@ The seed produces 3 sites, 6 devices, and 1,008 hourly samples for November 1–
 This small dataset illustrates queries, not a realistic production workload.
 
 The interactive connection opens the database read-only. Output is capped at
-100 rows; this is a display cap, not a query execution limit. Before adding LLM
-execution we will implement query validation and resource limits.
+100 rows; the interactive lab is intended for manually entered SQL. Automatic
+model execution uses the separate restrictions in `query.py` described above.
 
 ## Learning path
 
