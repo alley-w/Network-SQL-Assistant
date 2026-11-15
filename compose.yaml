@@ -1,0 +1,9 @@
+services:
+  lab:
+    build: .
+    stdin_open: true
+    tty: true
+    volumes:
+      - network_data:/app/data
+volumes:
+  network_data:
