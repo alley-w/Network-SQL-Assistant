@@ -1,0 +1,22 @@
+name: Docker checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Build application image
+        run: docker build -t network-sql-assistant:test .
+      - name: Test execution restrictions and evaluation scoring
+        run: docker run --rm network-sql-assistant:test python -m unittest -v test_query test_evaluate_model
+      - name: Verify reference answers
+        run: docker run --rm network-sql-assistant:test python evaluate.py
+      - name: Verify prompt preview without credentials
+        run: docker run --rm network-sql-assistant:test python generate.py --preview "How many devices are monitored?"

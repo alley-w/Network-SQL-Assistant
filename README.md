@@ -130,8 +130,6 @@ starting point. Keep separate held-out questions when evaluating model changes.
 Try changing `> 80` to `< 80` in the high-CPU example, rerun, observe the failure,
 then restore it. This demonstrates why valid SQL can still answer the wrong question.
 
-### Roadmap
-
 ### Live model evaluation
 
 ```sh
@@ -155,6 +153,13 @@ question (generation plus execution). This is one run on five simple development
 questions, not held-out or production accuracy. The model alias can change over
 time. Future evaluation needs more questions, unsupported requests, diverse data,
 and separate held-out examples. Empty-result matches can conceal incorrect SQL.
+
+### Automated checks
+
+GitHub Actions builds the Docker image on pushes and pull requests, runs the
+execution/evaluation tests, verifies reference answers, and checks prompt preview.
+It does not receive an API key or make paid model calls. Live evaluation remains
+an explicit local command.
 
 ### Planned work
 
