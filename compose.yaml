@@ -3,6 +3,10 @@ services:
     build: .
     stdin_open: true
     tty: true
+    environment:
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
     volumes:
       - network_data:/app/data
 volumes:

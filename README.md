@@ -1,8 +1,9 @@
 # Network SQL Assistant
 
 A learning project toward a text-to-SQL assistant for network monitoring.
-Current milestone: a Docker-based SQL lab with synthetic data. Natural-language
-SQL generation, a web UI, interface utilization, and outage data are future work.
+Current features: a Docker-based SQL lab, reference-query evaluation, and a
+configurable SQL-generation CLI. A live model connection still requires setup.
+A web UI, interface utilization, and outage data are future work.
 SQLBot is an architectural reference; this starter contains no copied SQLBot code.
 
 ## Run
@@ -29,7 +30,42 @@ After editing Python files, run the same Docker command to rebuild.
 - `compose.yaml` defines the lab container and a named volume for the database.
 - A container is a running instance of the image. `--rm` removes that container
   after exit; the named volume keeps the database between runs.
-- No host Python installation, packages, API keys, or exposed ports are needed.
+- No host Python installation or exposed ports are needed. The SQL lab and
+  reference evaluator require no API key.
+
+## Generate SQL from a question
+
+First inspect exactly what the model will receive, without making an API call:
+
+```sh
+docker compose run --build --rm lab python generate.py --preview "Which devices recorded CPU above 80%?"
+```
+
+`generate.py` reads the database's table definitions and combines them with SQL
+instructions and your question. It sends schema and question, not metric rows.
+Reference answers in `examples.json` are not included in the prompt.
+
+Copy `.env.example` to `.env` and configure `LLM_BASE_URL`, `LLM_MODEL`, and,
+if your service needs one, `LLM_API_KEY`. Compose passes those values to the
+container. `.env` is excluded from Git and the Docker build context. Never paste
+keys into source files or chat. Hosted API use may incur provider charges.
+
+```sh
+docker compose run --build --rm lab python generate.py "Which devices recorded CPU above 80%?"
+```
+
+This uses the OpenAI-compatible `/chat/completions` protocol with a configurable
+model. OpenAI's base URL is `https://api.openai.com/v1`. For Ollama running on
+your Mac, use `http://host.docker.internal:11434/v1` and an installed model name.
+Inside the container, `localhost` refers to the container itself, not your Mac.
+
+Output is untrusted model text for review only: it is not validated or executed.
+The prompt's read-only instructions are not a security boundary. Unsupported
+questions should return `UNSUPPORTED`; that behavior still needs live evaluation.
+The next milestone will validate and constrain execution before integrating it.
+
+Protocol references: [OpenAI Chat API](https://developers.openai.com/api/reference/resources/chat)
+and [Ollama compatibility](https://docs.ollama.com/api/openai-compatibility).
 
 ## Data model
 
