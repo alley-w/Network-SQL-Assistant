@@ -47,6 +47,8 @@ def evaluation_results():
         "Challenge baseline": ROOT / "benchmarks" / "challenge-baseline.json",
         "Latest development run": Path("data/model-evaluation.json"),
         "Latest challenge run": Path("data/challenge-evaluation.json"),
+        "Orion reference checks": Path("data/orion-reference.json"),
+        "Orion model evaluation": Path("data/orion-model-evaluation.json"),
     }
     available = {label: path for label, path in candidates.items() if path.is_file()}
     if not available:
@@ -62,6 +64,7 @@ def evaluation_results():
     except (OSError, ValueError, KeyError, TypeError):
         st.warning("This report could not be read. Generate a new evaluation report and try again.")
         return
+    st.caption("Evaluation mode: " + report.get("evaluation_mode", "historical model run"))
     st.metric("Questions passed", f"{passed}/{total}")
     st.caption(f"Model: {report.get('model', 'unspecified')} · Recorded: {report.get('created_at', 'unspecified')}")
     st.info(report.get("scope", "Results on a small synthetic dataset; not a production accuracy estimate."))

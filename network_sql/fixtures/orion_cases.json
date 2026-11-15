@@ -1,0 +1,213 @@
+[
+  {
+    "id": "inventory",
+    "question": "How many devices are in the inventory?",
+    "sql": "SELECT COUNT(*) FROM devices",
+    "expected_rows": [
+      [
+        3
+      ]
+    ]
+  },
+  {
+    "id": "sites",
+    "question": "How many sites are represented?",
+    "sql": "SELECT COUNT(*) FROM sites",
+    "expected_rows": [
+      [
+        2
+      ]
+    ]
+  },
+  {
+    "id": "samples",
+    "question": "How many exported history records are available?",
+    "sql": "SELECT COUNT(*) FROM device_metrics",
+    "expected_rows": [
+      [
+        6
+      ]
+    ]
+  },
+  {
+    "id": "site_counts",
+    "question": "List device counts per site, sorted by site name.",
+    "sql": "SELECT s.name, COUNT(*) FROM sites s JOIN devices d ON d.site_id=s.id GROUP BY s.id ORDER BY s.name",
+    "expected_rows": [
+      [
+        "Demo East",
+        1
+      ],
+      [
+        "Demo West",
+        2
+      ]
+    ]
+  },
+  {
+    "id": "routers",
+    "question": "List routers alphabetically.",
+    "sql": "SELECT hostname FROM devices WHERE device_type='router' ORDER BY hostname",
+    "expected_rows": [
+      [
+        "demo-east-router"
+      ],
+      [
+        "demo-west-router"
+      ]
+    ]
+  },
+  {
+    "id": "switches",
+    "question": "List switches alphabetically.",
+    "sql": "SELECT hostname FROM devices WHERE device_type='switch' ORDER BY hostname",
+    "expected_rows": [
+      [
+        "demo-west-switch"
+      ]
+    ]
+  },
+  {
+    "id": "high_cpu",
+    "question": "Count recorded CPU averages above 80% per device, sorted by hostname.",
+    "sql": "SELECT d.hostname, COUNT(*) FROM devices d JOIN device_metrics m ON d.id=m.device_id WHERE cpu_pct>80 GROUP BY d.id ORDER BY d.hostname",
+    "expected_rows": [
+      [
+        "demo-east-router",
+        1
+      ],
+      [
+        "demo-west-router",
+        2
+      ]
+    ]
+  },
+  {
+    "id": "cpu_90",
+    "question": "Which recorded CPU averages exceeded 90%? Sort by hostname and timestamp.",
+    "sql": "SELECT d.hostname,m.collected_at,m.cpu_pct FROM devices d JOIN device_metrics m ON d.id=m.device_id WHERE cpu_pct>90 ORDER BY d.hostname,m.collected_at",
+    "expected_rows": [
+      [
+        "demo-west-router",
+        "2026-11-01 12:00:00",
+        91.0
+      ]
+    ]
+  },
+  {
+    "id": "high_memory",
+    "question": "Which devices have recorded memory averages above 70%? Sort by hostname.",
+    "sql": "SELECT DISTINCT d.hostname FROM devices d JOIN device_metrics m ON d.id=m.device_id WHERE memory_pct>70 ORDER BY d.hostname",
+    "expected_rows": [
+      [
+        "demo-east-router"
+      ]
+    ]
+  },
+  {
+    "id": "cpu_max",
+    "question": "What is the highest recorded CPU average per device? Sort by hostname.",
+    "sql": "SELECT d.hostname,MAX(m.cpu_pct) FROM devices d JOIN device_metrics m ON d.id=m.device_id GROUP BY d.id ORDER BY d.hostname",
+    "expected_rows": [
+      [
+        "demo-east-router",
+        83.0
+      ],
+      [
+        "demo-west-router",
+        91.0
+      ],
+      [
+        "demo-west-switch",
+        40.0
+      ]
+    ]
+  },
+  {
+    "id": "cpu_mean",
+    "question": "What is the unweighted mean of the two exported CPU averages for each device? Sort by hostname.",
+    "sql": "SELECT d.hostname,AVG(m.cpu_pct) FROM devices d JOIN device_metrics m ON d.id=m.device_id GROUP BY d.id ORDER BY d.hostname",
+    "expected_rows": [
+      [
+        "demo-east-router",
+        67.5
+      ],
+      [
+        "demo-west-router",
+        89.5
+      ],
+      [
+        "demo-west-switch",
+        36.0
+      ]
+    ]
+  },
+  {
+    "id": "top_cpu",
+    "question": "Which device has the highest recorded CPU average? Break ties by hostname.",
+    "sql": "SELECT d.hostname,MAX(m.cpu_pct) AS peak_average FROM devices d JOIN device_metrics m ON d.id=m.device_id GROUP BY d.id ORDER BY peak_average DESC,d.hostname LIMIT 1",
+    "expected_rows": [
+      [
+        "demo-west-router",
+        91.0
+      ]
+    ]
+  },
+  {
+    "id": "utc_range",
+    "question": "Count history records from 12:00 inclusive to 13:00 exclusive on November 1, 2026 UTC.",
+    "sql": "SELECT COUNT(*) FROM device_metrics WHERE collected_at>='2026-11-01 12:00:00' AND collected_at<'2026-11-01 13:00:00'",
+    "expected_rows": [
+      [
+        3
+      ]
+    ]
+  },
+  {
+    "id": "empty_day",
+    "question": "List devices with records on November 2, 2026 UTC. Sort by hostname.",
+    "sql": "SELECT DISTINCT d.hostname FROM devices d JOIN device_metrics m ON d.id=m.device_id WHERE collected_at>='2026-11-02 00:00:00' AND collected_at<'2026-11-03 00:00:00' ORDER BY d.hostname",
+    "expected_rows": []
+  },
+  {
+    "id": "no_hot_switch",
+    "question": "How many switch records have a CPU average above 80%?",
+    "sql": "SELECT COUNT(*) FROM devices d JOIN device_metrics m ON d.id=m.device_id WHERE device_type='switch' AND cpu_pct>80",
+    "expected_rows": [
+      [
+        0
+      ]
+    ]
+  },
+  {
+    "id": "bounds",
+    "question": "What are the earliest and latest exported timestamps?",
+    "sql": "SELECT MIN(collected_at),MAX(collected_at) FROM device_metrics",
+    "expected_rows": [
+      [
+        "2026-11-01 12:00:00",
+        "2026-11-01 13:00:00"
+      ]
+    ]
+  },
+  {
+    "id": "bandwidth",
+    "question": "Which interfaces exceeded 90% bandwidth utilization?",
+    "expected_status": "unsupported"
+  },
+  {
+    "id": "outages",
+    "question": "How many outage minutes did each router have?",
+    "expected_status": "unsupported"
+  },
+  {
+    "id": "instant_peak",
+    "question": "What was the true instantaneous peak CPU between exported average records?",
+    "expected_status": "unsupported"
+  },
+  {
+    "id": "relative",
+    "question": "Which devices had high CPU yesterday?",
+    "expected_status": "unsupported"
+  }
+]

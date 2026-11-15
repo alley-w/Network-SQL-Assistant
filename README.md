@@ -388,3 +388,30 @@ Those require extending the shared metric model before real-data evaluation.
 Live Orion compatibility, installed module/schema differences, authentication,
 paging, archive selection, and the site's custom-property mapping remain to be
 verified in an approved work environment.
+
+### Verify the Orion demo questions
+
+`network_sql/fixtures/orion_cases.json` contains 16 answerable questions and four
+unsupported requests. They cover inventory, joins, CPU/memory thresholds, rankings,
+UTC boundaries, empty results, and unavailable bandwidth/outage/instantaneous-peak
+information. These are development cases, not an independent benchmark.
+
+After importing the simulated Orion snapshot, verify the reference SQL offline:
+
+```sh
+docker compose run --build --rm lab python evaluate_model.py --database data/orion-simulated.db --cases network_sql/fixtures/orion_cases.json --reference-only --report data/orion-reference.json
+```
+
+This checks only the 16 supplied SQL answers. It makes no model requests and
+explicitly marks the four unsupported questions as untested. Reports identify
+`evaluation_mode=reference_sql`; passing is not evidence of model accuracy.
+The Evaluation results page offers the resulting Orion reference report.
+
+To evaluate generated answers later, explicitly run the paid model evaluation:
+
+```sh
+docker compose run --rm lab python evaluate_model.py --database data/orion-simulated.db --cases network_sql/fixtures/orion_cases.json --report data/orion-model-evaluation.json
+```
+
+Both commands read the selected database without seeding or modifying it. Without
+`--database`, evaluation retains the original fresh synthetic-demo behavior.

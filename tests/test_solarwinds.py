@@ -53,3 +53,22 @@ class OrionAdapterTests(unittest.TestCase):
                 with self.subTest(key=key), self.assertRaises(ValueError):
                     import_orion(nodes, history, root / 'out.db')
                 self.assertFalse((root / 'out.db').exists())
+
+    def test_reference_suite_has_verified_answers_and_no_paid_calls(self):
+        from unittest.mock import patch
+        from network_sql.evaluate_model import main
+        cases = FIXTURES / 'orion_cases.json'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            db, report = root / 'orion.db', root / 'report.json'
+            import_orion(FIXTURES / 'orion_nodes_simulated.json', FIXTURES / 'orion_history_simulated.json', db)
+            original = db.read_bytes()
+            with patch('sys.argv', ['evaluate_model', '--database', str(db), '--cases', str(cases), '--reference-only', '--report', str(report)]), patch('network_sql.evaluate_model.generate_sql', side_effect=AssertionError('No paid calls')):
+                self.assertEqual(main(), 0)
+            result = json.loads(report.read_text())
+            self.assertEqual(result['evaluation_mode'], 'reference_sql')
+            self.assertEqual((result['passed'], result['total']), (16, 16))
+            self.assertEqual(result['unsupported_cases_not_tested'], 4)
+            self.assertTrue(all(row['decision_source'] == 'reference_sql' for row in result['results']))
+            self.assertIsNone(result['model'])
+            self.assertEqual(db.read_bytes(), original)
