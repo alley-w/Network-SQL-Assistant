@@ -132,6 +132,32 @@ then restore it. This demonstrates why valid SQL can still answer the wrong ques
 
 ### Roadmap
 
+### Live model evaluation
+
+```sh
+docker compose run --build --rm lab python evaluate_model.py
+```
+
+This makes five paid model calls, generates SQL from questions and schema only,
+executes through `query.py` against a fresh synthetic database, and compares
+ordered result rows with the reference answers. It distinguishes generation
+errors, execution errors, wrong results, and passes. Truncated results never
+count as passes. Column aliases are not scored.
+
+The detailed report persists in the Docker volume at `/app/data/model-evaluation.json`;
+each run overwrites it. Reports include generated SQL, rows, per-question latency,
+the configured model, UTC timestamp, and prompt/reference-set hashes. No API key
+is included. A nonzero exit status means at least one question failed.
+
+`benchmarks/baseline.json` records the first live run: GPT-4.1 mini answered 5/5
+development questions correctly, with observed latency 0.867–1.816 seconds per
+question (generation plus execution). This is one run on five simple development
+questions, not held-out or production accuracy. The model alias can change over
+time. Future evaluation needs more questions, unsupported requests, diverse data,
+and separate held-out examples. Empty-result matches can conceal incorrect SQL.
+
+### Planned work
+
 1. Explain SELECT, JOIN, GROUP BY, HAVING, and time filtering using this data.
 2. Add interfaces and outage events; define how utilization/downtime are measured.
 3. Generate SQL from questions using the schema and a model.

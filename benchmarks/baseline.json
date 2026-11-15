@@ -1,0 +1,118 @@
+{
+  "total": 5,
+  "passed": 5,
+  "accuracy": 1.0,
+  "results": [
+    {
+      "id": "sample_count",
+      "question": "How many monitoring samples are in the dataset?",
+      "expected_rows": [
+        [
+          1008
+        ]
+      ],
+      "prompt_sha256": "733d6c4707e4bf0f225ca93d20184c84730e3d3e452cffe0641a41bdb2e821ae",
+      "generated_sql": "SELECT COUNT(*) AS sample_count FROM device_metrics;",
+      "actual_rows": [
+        [
+          1008
+        ]
+      ],
+      "truncated": false,
+      "status": "pass",
+      "latency_seconds": 1.499
+    },
+    {
+      "id": "devices_by_site",
+      "question": "How many devices does each site have? Sort by site name.",
+      "expected_rows": [
+        [
+          "Montreal",
+          2
+        ],
+        [
+          "Toronto",
+          2
+        ],
+        [
+          "Vancouver",
+          2
+        ]
+      ],
+      "prompt_sha256": "e6b16df1c12c7ad2515d11485c99ad9a49d24279e6500df01033c6818f84aec5",
+      "generated_sql": "SELECT s.name AS site_name, COUNT(d.id) AS device_count\nFROM sites s\nLEFT JOIN devices d ON s.id = d.site_id\nGROUP BY s.name\nORDER BY s.name\nLIMIT 100;",
+      "actual_rows": [
+        [
+          "Montreal",
+          2
+        ],
+        [
+          "Toronto",
+          2
+        ],
+        [
+          "Vancouver",
+          2
+        ]
+      ],
+      "truncated": false,
+      "status": "pass",
+      "latency_seconds": 1.136
+    },
+    {
+      "id": "high_cpu",
+      "question": "Which devices recorded CPU above 80%, and how many such samples did each have? Sort by hostname.",
+      "expected_rows": [
+        [
+          "site-2-router-01",
+          56
+        ]
+      ],
+      "prompt_sha256": "efbbea78a84a8edbc8484c54278b1e373ddeaeeae4aafba2c6776d056d106768",
+      "generated_sql": "SELECT d.hostname, COUNT(*) AS high_cpu_samples\nFROM device_metrics dm\nJOIN devices d ON dm.device_id = d.id\nWHERE dm.cpu_pct > 80\nGROUP BY d.hostname\nORDER BY d.hostname\nLIMIT 100;",
+      "actual_rows": [
+        [
+          "site-2-router-01",
+          56
+        ]
+      ],
+      "truncated": false,
+      "status": "pass",
+      "latency_seconds": 0.867
+    },
+    {
+      "id": "daily_high_cpu",
+      "question": "How many samples exceeded 80% CPU on November 3, 2026 UTC?",
+      "expected_rows": [
+        [
+          8
+        ]
+      ],
+      "prompt_sha256": "524cc80e1b94cf96a9171f2b7625b0254b743542dbfe2034d95b924b869ed883",
+      "generated_sql": "SELECT COUNT(*) AS high_cpu_samples\nFROM device_metrics\nWHERE cpu_pct > 80\n  AND collected_at >= '2026-11-03 00:00:00'\n  AND collected_at < '2026-11-04 00:00:00';",
+      "actual_rows": [
+        [
+          8
+        ]
+      ],
+      "truncated": false,
+      "status": "pass",
+      "latency_seconds": 1.816
+    },
+    {
+      "id": "outside_date_range",
+      "question": "Which devices have monitoring samples on November 8, 2026 UTC? Sort by hostname.",
+      "expected_rows": [],
+      "prompt_sha256": "b4cfa2beccb05612a012ac69feb313485f10a93380018c268e4454d4601c2474",
+      "generated_sql": "SELECT DISTINCT d.hostname\nFROM device_metrics dm\nJOIN devices d ON dm.device_id = d.id\nWHERE dm.collected_at >= '2026-11-08 00:00:00'\n  AND dm.collected_at < '2026-11-09 00:00:00'\nORDER BY d.hostname\nLIMIT 100;",
+      "actual_rows": [],
+      "truncated": false,
+      "status": "pass",
+      "latency_seconds": 0.889
+    }
+  ],
+  "created_at": "2026-11-15T03:48:54.424818+00:00",
+  "model": "gpt-4.1-mini",
+  "dataset_sha256": "e9197ace01bcf71256cca9cbba7a03cc021bd06c2ce1fdb494aaec4431a7a432",
+  "scope": "Five development examples on synthetic data; not held-out accuracy."
+}
