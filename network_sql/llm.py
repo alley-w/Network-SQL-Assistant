@@ -6,14 +6,16 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from network_sql.dates import resolve_question
+from network_sql.metadata import read_metadata, METRIC_NOTES
 
 
 def build_messages(db, question, reference_date=None):
     question = resolve_question(question, reference_date)
     schema = "\n".join(row[0] + ";" for row in db.execute(
         "SELECT sql FROM sqlite_master WHERE type = 'table' "
-        "AND name NOT LIKE 'sqlite_%' ORDER BY name"
+        "AND name IN ('sites', 'devices', 'device_metrics') ORDER BY name"
     ))
+    metric_note = METRIC_NOTES[read_metadata(db)["metric_kind"]]
     return [
         {"role": "system", "content": (
             "Translate the user's network monitoring question into SQLite SQL. "
@@ -24,7 +26,7 @@ def build_messages(db, question, reference_date=None):
             "percentages. A sample is not an incident or an outage. Use explicit date ranges; "
             "if a relative date has no reference date, return UNSUPPORTED. "
             "Use deterministic ordering for rankings, including a tie breaker. "
-            "Limit lists to 100 rows unless the user requests fewer.\n\nSchema:\n" + schema
+            "Limit lists to 100 rows unless the user requests fewer.\n" + metric_note + "\n\nSchema:\n" + schema
         )},
         {"role": "user", "content": question},
     ]

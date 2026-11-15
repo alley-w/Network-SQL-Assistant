@@ -61,7 +61,7 @@ def normalize(nodes_response, history_response):
             'devices': devices, 'device_metrics': metrics}
 
 
-def import_orion(nodes_file, history_file, destination):
+def import_orion(nodes_file, history_file, destination, *, simulated=False):
     responses = []
     for filename in (nodes_file, history_file):
         path = Path(filename)
@@ -72,7 +72,7 @@ def import_orion(nodes_file, history_file, destination):
     with tempfile.TemporaryDirectory() as directory:
         normalized = Path(directory) / 'normalized.json'
         normalized.write_text(json.dumps(payload))
-        return import_snapshot(normalized, destination)
+        return import_snapshot(normalized, destination, orion_simulated=simulated)
 
 
 def main():
@@ -80,9 +80,10 @@ def main():
     parser.add_argument('nodes', help='Complete Orion.Nodes query response JSON')
     parser.add_argument('history', help='Complete Orion.CPULoad query response JSON')
     parser.add_argument('destination', help='New SQLite snapshot filename')
+    parser.add_argument("--simulated", action="store_true", help="Label authored demo responses as simulated data")
     args = parser.parse_args()
     try:
-        counts = import_orion(args.nodes, args.history, args.destination)
+        counts = import_orion(args.nodes, args.history, args.destination, simulated=args.simulated)
     except (OSError, ValueError) as error:
         parser.exit(2, f'Orion import failed: {error}\n')
     print('Imported Orion-format snapshot: ' + json.dumps(counts))

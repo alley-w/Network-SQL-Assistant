@@ -35,5 +35,12 @@ def database_path():
 
 
 def dataset_caption():
-    return ('Imported snapshot · All timestamps are UTC' if os.environ.get('NETWORK_DB_PATH', '').strip()
-            else 'Synthetic dataset · November 1–7, 2026 · All dates and timestamps are UTC')
+    if not os.environ.get('NETWORK_DB_PATH', '').strip():
+        return 'Synthetic dataset · November 1–7, 2026 · All dates and timestamps are UTC'
+    from network_sql.metadata import read_metadata
+    with closing(sqlite3.connect(database_path().resolve().as_uri() + '?mode=ro', uri=True)) as db:
+        metadata = read_metadata(db)
+    source = 'SolarWinds Orion' if metadata['source'] == 'solarwinds_orion' else 'Imported snapshot'
+    label = 'Simulated ' if metadata['simulated'] else ''
+    metric = ' · Recorded interval averages' if metadata['metric_kind'] == 'interval_average' else ''
+    return label + source + metric + ' · All timestamps are UTC'

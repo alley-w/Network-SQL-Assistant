@@ -13,7 +13,7 @@ from network_sql.database import seed
 from network_sql.source import COLUMNS
 
 
-def import_snapshot(source, destination):
+def import_snapshot(source, destination, *, orion_simulated=None):
     source, destination = Path(source), Path(destination)
     if destination.exists():
         raise ValueError('Destination already exists. Choose a new snapshot filename.')
@@ -61,6 +61,11 @@ def import_snapshot(source, destination):
                                    [[row[column] for column in columns] for row in payload[table]])
         except sqlite3.IntegrityError:
             raise ValueError('Export contains duplicate identifiers, duplicate samples, or invalid device/site references.') from None
+        with closing(sqlite3.connect(temporary)) as db, db:
+            db.execute('CREATE TABLE snapshot_metadata (source TEXT NOT NULL, simulated INTEGER NOT NULL, metric_kind TEXT NOT NULL)')
+            db.execute('INSERT INTO snapshot_metadata VALUES (?, ?, ?)',
+                       ('normalized_export' if orion_simulated is None else 'solarwinds_orion',
+                        int(bool(orion_simulated)), 'unknown' if orion_simulated is None else 'interval_average'))
         os.link(temporary, destination)
     return {table: len(rows) for table, rows in payload.items()}
 

@@ -1,13 +1,14 @@
 """Schema and reproducible synthetic network data."""
 import random
 import sqlite3
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
 def seed(path):
     path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db, db:
         db.executescript("""
             PRAGMA foreign_keys = ON;
             CREATE TABLE IF NOT EXISTS sites (

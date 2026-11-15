@@ -72,3 +72,23 @@ class OrionAdapterTests(unittest.TestCase):
             self.assertTrue(all(row['decision_source'] == 'reference_sql' for row in result['results']))
             self.assertIsNone(result['model'])
             self.assertEqual(db.read_bytes(), original)
+
+    def test_provenance_is_visible_but_not_queryable_or_in_schema(self):
+        import os
+        import sqlite3
+        from contextlib import closing
+        from unittest.mock import patch
+        from network_sql.llm import build_messages
+        from network_sql.source import dataset_caption
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / 'demo.db'
+            import_orion(FIXTURES / 'orion_nodes_simulated.json', FIXTURES / 'orion_history_simulated.json', db, simulated=True)
+            with closing(sqlite3.connect(db)) as connection:
+                messages = build_messages(connection, 'What is the maximum recorded CPU?')
+            prompt = messages[0]['content']
+            self.assertIn('interval averages', prompt)
+            self.assertNotIn('CREATE TABLE snapshot_metadata', prompt)
+            with self.assertRaises(ValueError):
+                execute_query(db, 'SELECT * FROM snapshot_metadata')
+            with patch.dict(os.environ, {'NETWORK_DB_PATH': str(db)}):
+                self.assertIn('Simulated SolarWinds Orion', dataset_caption())

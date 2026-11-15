@@ -339,7 +339,7 @@ are authored simulations, not captures from a real Orion installation.
 Try the full offline import without credentials:
 
 ```sh
-docker compose run --build --rm lab python -m network_sql.adapters.solarwinds network_sql/fixtures/orion_nodes_simulated.json network_sql/fixtures/orion_history_simulated.json data/orion-simulated.db
+docker compose run --build --rm lab python -m network_sql.adapters.solarwinds network_sql/fixtures/orion_nodes_simulated.json network_sql/fixtures/orion_history_simulated.json data/orion-simulated.db --simulated
 ```
 
 Set `NETWORK_DB_PATH=data/orion-simulated.db` in `.env` and restart the web service
@@ -415,3 +415,12 @@ docker compose run --rm lab python evaluate_model.py --database data/orion-simul
 
 Both commands read the selected database without seeding or modifying it. Without
 `--database`, evaluation retains the original fresh synthetic-demo behavior.
+
+
+New snapshots store source and metric provenance in an internal metadata table.
+Use `--simulated` for authored Orion demos so the UI labels them explicitly.
+Orion prompts identify CPU/memory as interval averages and decline unsupported
+instantaneous-peak or duration interpretations. Metadata is excluded from the
+model's queryable schema and denied by the SQL executor. Older snapshots without
+metadata remain readable with aggregation marked unspecified; reimport a demo
+under a new filename to obtain the source label.
