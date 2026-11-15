@@ -3,9 +3,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock
 
-from app import seed
-from date_context import ClarificationRequired, resolve_question
-from evaluate_model import evaluate_cases
+from network_sql.database import seed
+from network_sql.dates import ClarificationRequired, resolve_question
+from network_sql.evaluate_model import evaluate_cases
 
 
 class DateContextTests(unittest.TestCase):

@@ -3,17 +3,17 @@ import json
 import unittest
 from pathlib import Path
 
-from app import seed
-from evaluate_model import evaluate_cases
+from network_sql.database import seed
+from network_sql.evaluate_model import evaluate_cases
 
 
 class EvaluationTests(unittest.TestCase):
     def test_challenge_reference_answers(self):
-        from query import execute_query
+        from network_sql.executor import execute_query
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "db"
             seed(path)
-            for case in json.loads(Path(__file__).with_name("challenge_cases.json").read_text()):
+            for case in json.loads((Path(__file__).resolve().parents[1] / "network_sql" / "fixtures" / "challenge_cases.json").read_text()):
                 if "sql" in case:
                     with self.subTest(case=case["id"]):
                         self.assertEqual(execute_query(path, case["sql"])["rows"], case["expected_rows"])

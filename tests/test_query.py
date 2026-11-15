@@ -4,8 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from app import seed
-from query import execute_query
+from network_sql.database import seed
+from network_sql.executor import execute_query
 
 
 class QueryTests(unittest.TestCase):
@@ -16,7 +16,7 @@ class QueryTests(unittest.TestCase):
         seed(self.path)
 
     def test_reference_answers(self):
-        for case in json.loads(Path(__file__).with_name("examples.json").read_text()):
+        for case in json.loads((Path(__file__).resolve().parents[1] / "network_sql" / "fixtures" / "examples.json").read_text()):
             with self.subTest(case=case["id"]):
                 self.assertEqual(execute_query(self.path, case["sql"])["rows"], case["expected_rows"])
 

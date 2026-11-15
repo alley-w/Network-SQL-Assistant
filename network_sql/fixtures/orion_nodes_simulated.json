@@ -1,0 +1,5 @@
+{"results": [
+  {"NodeID": 101, "Caption": "demo-west-router", "Site": "Demo West", "DeviceType": "router"},
+  {"NodeID": 102, "Caption": "demo-west-switch", "Site": "Demo West", "DeviceType": "switch"},
+  {"NodeID": 201, "Caption": "demo-east-router", "Site": "Demo East", "DeviceType": "router"}
+]}

@@ -1,0 +1,8 @@
+{"results": [
+  {"NodeID": 101, "DateTime": "2026-11-01T12:00:00Z", "AvgLoad": 91, "AvgPercentMemoryUsed": 62},
+  {"NodeID": 102, "DateTime": "2026-11-01T12:00:00Z", "AvgLoad": 32, "AvgPercentMemoryUsed": 45},
+  {"NodeID": 201, "DateTime": "2026-11-01T12:00:00Z", "AvgLoad": 52, "AvgPercentMemoryUsed": 71},
+  {"NodeID": 101, "DateTime": "2026-11-01T13:00:00Z", "AvgLoad": 88, "AvgPercentMemoryUsed": 64},
+  {"NodeID": 102, "DateTime": "2026-11-01T13:00:00Z", "AvgLoad": 40, "AvgPercentMemoryUsed": 49},
+  {"NodeID": 201, "DateTime": "2026-11-01T13:00:00Z", "AvgLoad": 83, "AvgPercentMemoryUsed": 73}
+]}

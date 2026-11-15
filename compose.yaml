@@ -4,10 +4,17 @@ services:
     stdin_open: true
     tty: true
     environment:
+      NETWORK_DB_PATH: ${NETWORK_DB_PATH:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       LLM_MODEL: ${LLM_MODEL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
     volumes:
       - network_data:/app/data
+  web:
+    extends:
+      service: lab
+    command: ["streamlit", "run", "ui.py", "--server.address=0.0.0.0", "--server.port=8501", "--browser.gatherUsageStats=false", "--server.headless=true"]
+    ports:
+      - "127.0.0.1:8501:8501"
 volumes:
   network_data:

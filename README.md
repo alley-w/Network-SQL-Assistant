@@ -3,10 +3,73 @@
 A learning project toward a text-to-SQL assistant for network monitoring.
 Current features: a Docker-based SQL lab, reference-query evaluation, and a
 configurable SQL-generation CLI. A live model connection still requires setup.
-A web UI, interface utilization, and outage data are future work.
+A local browser interface supports question entry, optional UTC reference dates,
+SQL review, restricted execution, and CSV downloads. Interface utilization and
+outage data are future work.
 SQLBot is an architectural reference; this starter contains no copied SQLBot code.
 
+## Project structure
+
+```text
+network_sql/
+  database.py          # Schema and synthetic seed data
+  dates.py             # Deterministic date clarification
+  llm.py               # Prompt construction and model HTTP client
+  executor.py          # Restricted read-only SQL execution
+  ui.py                # Streamlit navigation, question page, and session state
+  views.py             # Data explorer and saved evaluation pages
+  lab.py               # Interactive SQL terminal
+  generate.py          # Generation CLI
+  evaluate.py          # Reference-query checks
+  evaluate_model.py    # Model scoring and reports
+  fixtures/            # Reference and challenge question sets
+tests/                 # Execution, date, evaluation, and UI tests
+benchmarks/            # Recorded baseline reports
+app.py, ui.py, ...      # Small entry points; existing commands still work
+```
+
+The UI and CLI share the same package code. Model calls live in `llm.py`;
+SQL permissions and resource limits live in `executor.py`. Evaluations import
+these same components. Keep framework code in the UI so it does not become a
+dependency of the database or executor.
+
+Streamlit is the current UI framework. Add FastAPI if a separate frontend or
+external clients need an HTTP API. SQLAlchemy and Alembic become useful when
+adding database backends and managed schema migrations. Generated SQL must
+continue to pass through the restricted executor regardless of framework.
+
+Run the offline suite with `docker compose run --build --rm lab python -m unittest discover -v`.
+
 ## Run
+
+### Browser interface
+
+```sh
+docker compose up --build -d web
+```
+
+Open http://localhost:8501. The sidebar links to **Ask a question**, **Explore data**,
+and **Evaluation results**. Explore data shows counts, schema, and table previews.
+Evaluation results displays saved baselines and the latest reports from the data
+volume, with failed-question filtering. These pages make no model calls.
+
+On Ask a question, enter a question, optionally select a UTC reference
+date, and click **Generate SQL**. Review the SQL and resolved question, then click
+**Run query**. Changing the question or date clears the prior answer. Generation
+makes a paid model call; running the generated SQL or downloading results does
+not call the model again. An empty result, API failure, unsupported question, and
+blocked query are shown separately. CSV downloads contain only displayed rows.
+
+The web service binds to this Mac's loopback address. It is a local development
+app without authentication; do not expose it as a public service. API credentials
+remain in the server-side environment and are not rendered by the UI. Session
+state retains the current answer during interactions but is not durable history.
+
+```sh
+docker compose stop web
+```
+
+### Terminal SQL lab
 
 Install and start Docker Desktop on your Mac, then open this folder in VS Code.
 From its terminal:
@@ -65,7 +128,7 @@ By default, output is untrusted model text for review only. To execute it:
 docker compose run --build --rm lab python generate.py --execute "Which devices recorded CPU above 80%, and how many such samples did each have? Sort by hostname."
 ```
 
-`query.py` opens a new read-only connection, enables query-only mode, and uses
+`network_sql/executor.py` opens a new read-only connection, enables query-only mode, and uses
 SQLite's authorizer to allow SELECT, reads of the three application tables, and
 an explicit list of reporting functions. Other actions are denied, including
 writes, schema changes, PRAGMA, ATTACH, extension loading, and metadata reads.
@@ -83,7 +146,7 @@ establish whether the generated query correctly answers the question.
 Run execution tests without contacting a model:
 
 ```sh
-docker compose run --build --rm lab python -m unittest -v test_query
+docker compose run --build --rm lab python -m unittest -v tests.test_query
 ```
 
 The tests cover reference answers, writes, attachment/extension attempts,
@@ -104,7 +167,7 @@ This small dataset illustrates queries, not a realistic production workload.
 
 The interactive connection opens the database read-only. Output is capped at
 100 rows; the interactive lab is intended for manually entered SQL. Automatic
-model execution uses the separate restrictions in `query.py` described above.
+model execution uses the separate restrictions in `network_sql/executor.py` described above.
 
 ## Learning path
 
@@ -137,7 +200,7 @@ docker compose run --build --rm lab python evaluate_model.py
 ```
 
 This makes five paid model calls, generates SQL from questions and schema only,
-executes through `query.py` against a fresh synthetic database, and compares
+executes through `network_sql/executor.py` against a fresh synthetic database, and compares
 ordered result rows with the reference answers. It distinguishes generation
 errors, execution errors, wrong results, and passes. Truncated results never
 count as passes. Column aliases are not scored.
@@ -161,7 +224,7 @@ the schema cannot answer: interface utilization, downtime, and a relative date
 without a reference date. Run it separately from the development examples:
 
 ```sh
-docker compose run --build --rm lab python evaluate_model.py --cases challenge_cases.json --report data/challenge-evaluation.json
+docker compose run --build --rm lab python evaluate_model.py --cases network_sql/fixtures/challenge_cases.json --report data/challenge-evaluation.json
 ```
 
 This makes nine model calls. Reports separate answerable-query correctness from
@@ -226,3 +289,102 @@ an explicit local command.
 
 Resume claims should reflect completed, measured work. This first milestone is
 a containerized synthetic network monitoring database and SQL exploration tool.
+
+## Import a local monitoring snapshot
+
+The first real-data integration uses a normalized JSON export. Map your monitoring
+system's fields to this format and convert timestamps to UTC before exporting.
+Use sanitized identifiers if necessary: the question and schema go to the model;
+query results stay local. The importer does not anonymize your export.
+
+```json
+{
+  "sites": [{"id": 1, "name": "Example site"}],
+  "devices": [{"id": 1, "hostname": "router-01", "site_id": 1, "device_type": "router"}],
+  "device_metrics": [{"device_id": 1, "collected_at": "2026-11-01 12:00:00", "cpu_pct": 92.0, "memory_pct": 43.0}]
+}
+```
+
+Each array must contain at least one record. IDs must be positive integers;
+percentages must be finite numbers from 0 to 100. Duplicate IDs/samples, missing
+references, invalid timestamps, and unexpected fields are rejected. JSON exports
+are capped at 20 MB. Imports create a new database and refuse to overwrite one.
+
+To import a host file into the existing Docker volume (replace the source path):
+
+```sh
+docker compose run --build --rm -v /absolute/path/export.json:/import/export.json:ro lab python -m network_sql.import_snapshot /import/export.json data/snapshot.db
+```
+
+Set `NETWORK_DB_PATH=data/snapshot.db` in `.env`, then run:
+
+```sh
+docker compose up --build -d web
+```
+
+The UI, generator CLI, and SQL lab will use that snapshot. A configured missing
+or incompatible database produces an error; it is never populated with demo rows.
+Leave `NETWORK_DB_PATH` blank to return to synthetic data. Existing evaluations
+and saved baselines continue to use their synthetic dataset and are not accuracy
+measurements for the imported snapshot. A vendor-specific exporter and verified
+real-data questions are the next integration steps.
+
+## SolarWinds Orion adapter — offline development
+
+`network_sql/adapters/solarwinds.py` maps exported Orion query responses into the
+same snapshot contract other monitoring adapters will use. It does not connect
+to SWIS, request credentials, or contain a live API client. The included responses
+are authored simulations, not captures from a real Orion installation.
+
+Try the full offline import without credentials:
+
+```sh
+docker compose run --build --rm lab python -m network_sql.adapters.solarwinds network_sql/fixtures/orion_nodes_simulated.json network_sql/fixtures/orion_history_simulated.json data/orion-simulated.db
+```
+
+Set `NETWORK_DB_PATH=data/orion-simulated.db` in `.env` and restart the web service
+to explore it. This remains simulated data. Importing again requires a new output
+filename; existing snapshots are never overwritten.
+
+The fixture contains 2 sites, 3 devices, and 6 history records. The verified SQL
+question “How many recorded CPU averages exceeded 80% per device?” returns:
+`demo-east-router: 1`, `demo-west-router: 2`.
+
+### Mapping contract
+
+| Input field | Shared field | Meaning |
+| --- | --- | --- |
+| Nodes `NodeID` | devices.id | Preserved Orion node identifier |
+| Nodes `Caption` | devices.hostname | Display caption, required to be unique in this prototype |
+| Export alias `Site` | sites.name | Explicit deployment-specific grouping |
+| Export alias `DeviceType` | devices.device_type | Explicit classification such as router or switch |
+| History `NodeID` | device_metrics.device_id | Reference to exported inventory |
+| History `DateTime` | collected_at | Explicit timezone converted to UTC |
+| History `AvgLoad` | cpu_pct | Recorded average CPU percentage |
+| History `AvgPercentMemoryUsed` | memory_pct | Recorded average memory percentage |
+
+The underlying fields are documented in the official
+[Orion.Nodes schema](https://solarwinds.github.io/OrionSDK/schema/Orion.Nodes.html)
+and [Orion.CPULoad schema](https://solarwinds.github.io/OrionSDK/schema/Orion.CPULoad.html).
+`Site` and `DeviceType` are our export aliases, not assumed built-in Orion fields.
+Map them from verified custom properties or another explicit mapping at work;
+we do not infer device types from model names or treat SNMP Location as a site.
+
+Input files contain `{"results": [...]}` objects. Supply complete exported
+results for a bounded time range, using a consistent aggregation tier. The adapter
+does not fetch additional pages or detect an incomplete export. Normalize raw
+SWIS date serialization to timezone-qualified ISO 8601 before import. Naive dates,
+fractional seconds, null metrics, out-of-range percentages, duplicate node/time
+pairs, and unknown nodes fail rather than being guessed, rounded, or filled in.
+Overlapping archive tiers must be resolved explicitly before import.
+
+Historical averages are not instantaneous measurements or maxima. A threshold
+count refers to exported average records, not incidents or downtime; history
+intervals may differ from the hourly synthetic demo. This adapter currently loses
+interval duration and archive provenance in the shared schema. It therefore does
+not support reliable duration calculations or weighted cross-interval averages.
+Those require extending the shared metric model before real-data evaluation.
+
+Live Orion compatibility, installed module/schema differences, authentication,
+paging, archive selection, and the site's custom-property mapping remain to be
+verified in an approved work environment.
