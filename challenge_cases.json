@@ -1,0 +1,125 @@
+[
+  {
+    "id": "highest_average_cpu",
+    "question": "Which device had the highest average CPU percentage over all recorded samples? Return its hostname and average CPU rounded to two decimals. Break ties by hostname.",
+    "sql": "SELECT d.hostname, ROUND(AVG(m.cpu_pct), 2) FROM devices d JOIN device_metrics m ON m.device_id=d.id GROUP BY d.id, d.hostname ORDER BY AVG(m.cpu_pct) DESC, d.hostname LIMIT 1;",
+    "expected_rows": [
+      [
+        "site-2-router-01",
+        56.55
+      ]
+    ]
+  },
+  {
+    "id": "daily_site_samples",
+    "question": "For November 3, 2026 UTC, count monitoring samples per site. Return site name and count, ordered by site name.",
+    "sql": "SELECT s.name, COUNT(*) FROM sites s JOIN devices d ON d.site_id=s.id JOIN device_metrics m ON m.device_id=d.id WHERE m.collected_at >= '2026-11-03 00:00:00' AND m.collected_at < '2026-11-04 00:00:00' GROUP BY s.id,s.name ORDER BY s.name;",
+    "expected_rows": [
+      [
+        "Montreal",
+        48
+      ],
+      [
+        "Toronto",
+        48
+      ],
+      [
+        "Vancouver",
+        48
+      ]
+    ]
+  },
+  {
+    "id": "never_high_cpu",
+    "question": "Which devices never recorded CPU above 80%? Return only hostname, sorted alphabetically.",
+    "sql": "SELECT d.hostname FROM devices d WHERE NOT EXISTS (SELECT 1 FROM device_metrics m WHERE m.device_id=d.id AND m.cpu_pct>80) ORDER BY d.hostname;",
+    "expected_rows": [
+      [
+        "site-1-router-01"
+      ],
+      [
+        "site-1-switch-01"
+      ],
+      [
+        "site-2-switch-01"
+      ],
+      [
+        "site-3-router-01"
+      ],
+      [
+        "site-3-switch-01"
+      ]
+    ]
+  },
+  {
+    "id": "sites_with_spikes",
+    "question": "Which sites have at least 10 samples above 80% CPU over the full dataset? Return site name and high-CPU sample count, ordered by site name.",
+    "sql": "SELECT s.name,COUNT(*) FROM sites s JOIN devices d ON d.site_id=s.id JOIN device_metrics m ON m.device_id=d.id WHERE m.cpu_pct>80 GROUP BY s.id,s.name HAVING COUNT(*)>=10 ORDER BY s.name;",
+    "expected_rows": [
+      [
+        "Toronto",
+        56
+      ]
+    ]
+  },
+  {
+    "id": "daily_spikes",
+    "question": "For each UTC date with CPU readings above 80%, return the date as YYYY-MM-DD and number of such samples, sorted by date.",
+    "sql": "SELECT DATE(collected_at),COUNT(*) FROM device_metrics WHERE cpu_pct>80 GROUP BY DATE(collected_at) ORDER BY DATE(collected_at);",
+    "expected_rows": [
+      [
+        "2026-11-01",
+        8
+      ],
+      [
+        "2026-11-02",
+        8
+      ],
+      [
+        "2026-11-03",
+        8
+      ],
+      [
+        "2026-11-04",
+        8
+      ],
+      [
+        "2026-11-05",
+        8
+      ],
+      [
+        "2026-11-06",
+        8
+      ],
+      [
+        "2026-11-07",
+        8
+      ]
+    ]
+  },
+  {
+    "id": "router_sample_count",
+    "question": "How many recorded monitoring samples belong to routers rather than switches? Return only the count.",
+    "sql": "SELECT COUNT(*) FROM device_metrics m JOIN devices d ON m.device_id=d.id WHERE d.device_type='router';",
+    "expected_rows": [
+      [
+        504
+      ]
+    ]
+  },
+  {
+    "id": "missing_interface_data",
+    "question": "Which interfaces exceeded 80% bandwidth utilization?",
+    "expected_status": "unsupported"
+  },
+  {
+    "id": "missing_outage_data",
+    "question": "Which site had the most minutes of downtime?",
+    "expected_status": "unsupported"
+  },
+  {
+    "id": "ambiguous_relative_date",
+    "question": "Which devices had the highest average CPU yesterday?",
+    "expected_status": "unsupported"
+  }
+]

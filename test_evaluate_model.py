@@ -1,4 +1,5 @@
 import tempfile
+import json
 import unittest
 from pathlib import Path
 
@@ -7,6 +8,30 @@ from evaluate_model import evaluate_cases
 
 
 class EvaluationTests(unittest.TestCase):
+    def test_challenge_reference_answers(self):
+        from query import execute_query
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "db"
+            seed(path)
+            for case in json.loads(Path(__file__).with_name("challenge_cases.json").read_text()):
+                if "sql" in case:
+                    with self.subTest(case=case["id"]):
+                        self.assertEqual(execute_query(path, case["sql"])["rows"], case["expected_rows"])
+
+    def test_abstention_scoring(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "db"
+            seed(path)
+            cases = [
+                {"id": "missing", "question": "Downtime?", "expected_status": "unsupported"},
+                {"id": "invented", "question": "Downtime?", "expected_status": "unsupported"},
+                {"id": "answerable", "question": "Count devices", "expected_rows": [[6]]},
+            ]
+            responses = iter(["UNSUPPORTED", "SELECT 0", "UNSUPPORTED"])
+            report = evaluate_cases(path, cases, lambda messages: next(responses))
+            self.assertEqual([r["status"] for r in report["results"]], ["pass", "wrong_abstention", "wrong_abstention"])
+            self.assertEqual(report["categories"]["unsupported"], {"total": 2, "passed": 1})
+
     def test_distinguishes_pass_wrong_and_execution_error(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "db"

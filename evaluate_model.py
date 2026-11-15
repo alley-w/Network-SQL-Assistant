@@ -19,8 +19,11 @@ def evaluate_cases(path, cases, generate=generate_sql):
     results = []
     for case in cases:
         started = time.monotonic()
+        unsupported = case.get("expected_status") == "unsupported"
         result = {"id": case["id"], "question": case["question"],
-                  "expected_rows": case["expected_rows"]}
+                  "expected_status": "unsupported" if unsupported else "rows"}
+        if not unsupported:
+            result["expected_rows"] = case["expected_rows"]
         with closing(sqlite3.connect(path)) as db:
             messages = build_messages(db, case["question"])
         result["prompt_sha256"] = hashlib.sha256(json.dumps(messages, sort_keys=True).encode()).hexdigest()
@@ -30,6 +33,12 @@ def evaluate_cases(path, cases, generate=generate_sql):
         except ValueError as error:
             result.update(status="generation_error", error=str(error))
         else:
+            if unsupported or sql.strip() == "UNSUPPORTED":
+                result["status"] = "pass" if unsupported and sql.strip() == "UNSUPPORTED" else "wrong_abstention"
+                result["latency_seconds"] = round(time.monotonic() - started, 3)
+                results.append(result)
+                print(f"{result['status'].upper()} {case['id']} ({result['latency_seconds']}s)", flush=True)
+                continue
             try:
                 actual = execute_query(path, sql)
                 result["actual_rows"] = actual["rows"]
@@ -41,15 +50,20 @@ def evaluate_cases(path, cases, generate=generate_sql):
         results.append(result)
         print(f"{result['status'].upper()} {case['id']} ({result['latency_seconds']}s)", flush=True)
     passed = sum(result["status"] == "pass" for result in results)
-    return {"total": len(results), "passed": passed,
+    categories = {}
+    for expected in ("rows", "unsupported"):
+        group = [r for r in results if r["expected_status"] == expected]
+        categories[expected] = {"total": len(group), "passed": sum(r["status"] == "pass" for r in group)}
+    return {"total": len(results), "passed": passed, "categories": categories,
             "accuracy": passed / len(results) if results else 0, "results": results}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", default="data/model-evaluation.json")
+    parser.add_argument("--cases", default=str(Path(__file__).with_name("examples.json")))
     args = parser.parse_args()
-    cases_file = Path(__file__).with_name("examples.json")
+    cases_file = Path(args.cases)
     cases = json.loads(cases_file.read_text())
     if not cases:
         parser.error("Reference set is empty")
@@ -63,7 +77,8 @@ def main():
     report.update(created_at=datetime.now(timezone.utc).isoformat(),
                   model=os.environ["LLM_MODEL"],
                   dataset_sha256=hashlib.sha256(cases_file.read_bytes()).hexdigest(),
-                  scope="Five development examples on synthetic data; not held-out accuracy.")
+                  cases_file=cases_file.name,
+                  scope="Small synthetic-data evaluation; inspect cases and prior prompt tuning before interpreting generalization.")
     destination = Path(args.report)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(json.dumps(report, indent=2) + "\n")
