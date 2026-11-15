@@ -1,0 +1,58 @@
+[
+  {
+    "id": "sample_count",
+    "question": "How many monitoring samples are in the dataset?",
+    "sql": "SELECT COUNT(*) AS sample_count FROM device_metrics;",
+    "expected_rows": [
+      [
+        1008
+      ]
+    ]
+  },
+  {
+    "id": "devices_by_site",
+    "question": "How many devices does each site have? Sort by site name.",
+    "sql": "SELECT s.name, COUNT(d.id) AS device_count FROM sites AS s LEFT JOIN devices AS d ON d.site_id = s.id GROUP BY s.id, s.name ORDER BY s.name;",
+    "expected_rows": [
+      [
+        "Montreal",
+        2
+      ],
+      [
+        "Toronto",
+        2
+      ],
+      [
+        "Vancouver",
+        2
+      ]
+    ]
+  },
+  {
+    "id": "high_cpu",
+    "question": "Which devices recorded CPU above 80%, and how many such samples did each have? Sort by hostname.",
+    "sql": "SELECT d.hostname, COUNT(*) AS high_cpu_samples FROM devices AS d JOIN device_metrics AS m ON m.device_id = d.id WHERE m.cpu_pct > 80 GROUP BY d.id, d.hostname ORDER BY d.hostname;",
+    "expected_rows": [
+      [
+        "site-2-router-01",
+        56
+      ]
+    ]
+  },
+  {
+    "id": "daily_high_cpu",
+    "question": "How many samples exceeded 80% CPU on November 3, 2026 UTC?",
+    "sql": "SELECT COUNT(*) AS high_cpu_samples FROM device_metrics WHERE cpu_pct > 80 AND collected_at >= '2026-11-03 00:00:00' AND collected_at < '2026-11-04 00:00:00';",
+    "expected_rows": [
+      [
+        8
+      ]
+    ]
+  },
+  {
+    "id": "outside_date_range",
+    "question": "Which devices have monitoring samples on November 8, 2026 UTC? Sort by hostname.",
+    "sql": "SELECT DISTINCT d.hostname FROM devices AS d JOIN device_metrics AS m ON m.device_id = d.id WHERE m.collected_at >= '2026-11-08 00:00:00' AND m.collected_at < '2026-11-09 00:00:00' ORDER BY d.hostname;",
+    "expected_rows": []
+  }
+]

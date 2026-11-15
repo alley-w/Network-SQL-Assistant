@@ -47,6 +47,30 @@ execution we will implement query validation and resource limits.
 
 ## Learning path
 
+### Reference questions
+
+`examples.json` pairs five English questions with reference SQL and expected rows.
+They cover counting, joins, grouping, threshold filtering, UTC date boundaries,
+and an empty result. Run them inside Docker:
+
+```sh
+docker compose run --build --rm lab python evaluate.py
+```
+
+The evaluator creates a temporary seeded database, opens it read-only, compares
+each query's rows with the saved answer, and exits nonzero on failure. It leaves
+the lab volume untouched. Row order matters; multirow examples explicitly sort.
+
+These checks verify our reference queries, not model accuracy. Later we will run
+model-generated SQL against the same answers. Matching results on one dataset
+does not prove two queries mean the same thing, and five examples are only a
+starting point. Keep separate held-out questions when evaluating model changes.
+
+Try changing `> 80` to `< 80` in the high-CPU example, rerun, observe the failure,
+then restore it. This demonstrates why valid SQL can still answer the wrong question.
+
+### Roadmap
+
 1. Explain SELECT, JOIN, GROUP BY, HAVING, and time filtering using this data.
 2. Add interfaces and outage events; define how utilization/downtime are measured.
 3. Generate SQL from questions using the schema and a model.
